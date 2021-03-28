@@ -70,17 +70,13 @@ cd ..
 git clone https://github.com/bungle/lua-resty-session
 cp -a lua-resty-session/lib/resty/session* /usr/local/lib/lua/resty/
 
-git clone https://github.com/ittner/lua-gd/
-cd lua-gd
-gcc -o gd.so -DGD_XPM -DGD_JPEG -DGD_FONTCONFIG -DGD_FREETYPE -DGD_PNG -DGD_GIF -O2 -Wall -fPIC -fomit-frame-pointer -I/usr/local/include/luajit-2.1 -DVERSION=\"2.0.33r3\" -shared -lgd luagd.c
-mv gd.so /usr/local/lib/lua/5.1/gd.so
-cd ..
-
 wget -O /usr/local/lib/lua/resty/aes_functions.lua https://github.com/c64bob/lua-resty-aes/raw/master/lib/resty/aes_functions.lua
 
 #include seems to be a bit mssed up with luajit
 mkdir /etc/nginx/resty
 ln -s /usr/local/lib/lua/resty/ /etc/nginx/resty/
+
+wget -O /usr/local/lib/lua/resty/random.lua https://raw.githubusercontent.com/bungle/lua-resty-random/master/lib/resty/random.lua
 
 make -j16 modules
 

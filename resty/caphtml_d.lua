@@ -1,6 +1,6 @@
 local b='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 
-function base64_encode(data)
+local function base64_encode(data)
     return ((data:gsub('.', function(x) 
         local r,b='',x:byte()
         for i=8,1,-1 do r=r..(b%2^i-b%2^(i-1)>0 and '1' or '0') end
@@ -13,7 +13,7 @@ function base64_encode(data)
     end)..({ '', '==', '=' })[#data%3+1])
 end
 
-function base64_decode(data)
+local function base64_decode(data)
     data = string.gsub(data, '[^'..b..'=]', '')
     return (data:gsub('.', function(x)
         if (x == '=') then return '' end
@@ -28,40 +28,105 @@ function base64_decode(data)
     end))
 end
 
-function in_array(tab, val)
-    for index, value in ipairs(tab) do
-        if value == val then
-            return true
-        end
+function displaycap()
+
+    hour = random.number(0,11)
+    minute = random.number(0,59)
+    shour = tostring(hour)
+    sminute = tostring(minute)
+    if string.len(shour) < 2 then shour = "0" .. shour end
+    if string.len(sminute) < 2 then sminute = "0" .. sminute end
+
+    local gd = require("gd")
+
+    local pickedtime = shour .. ":" .. sminute
+    local radios = {}
+    local ctimeindex = random.number(1,10)
+    radios[ctimeindex] = {}
+    radios[ctimeindex][1] = pickedtime
+    radios[ctimeindex][2] = shour .. sminute
+    for i = 1,ctimeindex-1,1 do
+        fshour = tostring(random.number(0,11))
+        fsminute = tostring(random.number(0,59))
+        if string.len(fshour) < 2 then fshour = "0" .. fshour end
+        if string.len(fsminute) < 2 then fsminute = "0" .. fsminute end
+        local fpickedtime = fshour .. ":" .. fsminute
+        radios[i] = {}
+        radios[i][1] = fpickedtime
+        radios[i][2] = fshour .. fsminute
     end
+    for i = ctimeindex+1,10,1 do
+        fshour = tostring(random.number(0,11))
+        fsminute = tostring(random.number(0,59))
+        if string.len(fshour) < 2 then fshour = "0" .. fshour end
+        if string.len(fsminute) < 2 then fsminute = "0" .. fsminute end
+        local fpickedtime = fshour .. ":" .. fsminute
+        radios[i] = {}
+        radios[i][1] = fpickedtime
+        radios[i][2] = fshour .. fsminute
+    end
+    
+
+
+local function createClock(size, hours, minutes)
+  local im = gd.createTrueColor(size, size)
+
+  local white = im:colorAllocate(random.number(200,255), random.number(200,255), random.number(200,255))
+  local gray = im:colorAllocate(random.number(100,150), random.number(100,150), random.number(100,150))
+  local black = im:colorAllocate(random.number(0,10), random.number(0,10), random.number(0,10))
+
+  local hrhand = im:colorAllocate(random.number(0,350), random.number(0,150), random.number(0,148))
+  local minhand = im:colorAllocate(random.number(0,350), random.number(0,150), random.number(0,148))
+
+  local cxy = size/2
+
+  im:filledRectangle(0, 0, size, size, white)
+  im:setThickness(2)
+  im:arc(cxy, cxy, size, size, 0, 360, black)
+
+  local ang = 0
+  local rang, gsize
+  while ang < 360 do
+    rang = math.rad(ang)
+    if (ang % 90) == 0 then
+      gsize = 0.75
+    elseif (ang % 5) == 0 then
+      gsize = 0.85
+    else
+      gsize = 0.90
+    end
+    im:line(
+      cxy + gsize * cxy * math.sin(rang),
+      size - (cxy + gsize * cxy * math.cos(rang)),
+      cxy + cxy * 0.9 * math.sin(rang),
+      size - (cxy + cxy * 0.9 * math.cos(rang)),
+      gray)
+      ang = ang + 6
+  end
+
+  im:setThickness(math.max(1, size/50))
+  im:line(cxy, cxy,
+    cxy + 0.45 * size * math.sin(math.rad(6*minutes)),
+    size - (cxy + 0.45 * size * math.cos(math.rad(6*minutes))),
+    hrhand)
+
+  im:setThickness(math.max(1, size/25))
+  rang = math.rad(30*hours + minutes/2)
+  im:line(cxy, cxy, 
+    cxy + 0.25 * size * math.sin(rang),
+    size - (cxy + 0.25 * size * math.cos(rang)),
+    minhand)
+
+  im:setThickness(1)
+  local sp = math.max(1, size/20)
+  im:filledArc(cxy, cxy, sp, sp, 0, 360, black, gd.ARC)
+  return im
 end
 
-local gd = require("gd")
+local im = createClock(190, hour, minute)
+local imageraw = im:jpegStr(90)
+local imageb64 = base64_encode(imageraw)
 
-function displaycap()
-    math.randomseed(ngx.now())
-
-    local img_width = 150;
-    local img_height = 150;
-
-    local capgrid = {}
-
-    local checkmin = 1
-    local checkmax = 6
-    local checktotal = 0
-
-    local sessiondice = "";
-
-    while checktotal < checkmin do
-        for i=1,9,1 do
-             check = math.random(0,1)
-             if checktotal < checkmax and check == 1 then capgrid[i] = check else capgrid[i] = 0 end             
-             if check == 1 then 
-                 checktotal = checktotal + 1
-                 sessiondice = sessiondice .. tostring(i)
-             end
-        end
-    end
 
     local cookie, err = cook:new()
     if not cookie then
@@ -71,71 +136,26 @@ function displaycap()
     end
 
     local tstamp = ngx.now()
-    local newcookdata = "cap_not_solved|" .. tstamp .. "|"
-    newcookdata = newcookdata .. sessiondice
+    local newcookdata = "cap_not_solved|" .. tstamp .. "|" .. shour .. sminute
+
+    newcookdata = newcookdata .. "|" .. random.token(random.number(10,20))
 
     local ciphertext = tohex(aes_128_cbc_sha512x1:encrypt(newcookdata))
     local ok, err = cookie:set({
         key = "dcap", value = ciphertext, path = "/",
         domain = ngx.var.host, httponly = true,
         max_age = 21600,
-        samesite = "Strict"
+        samesite = "Lax"
         })
     if not ok then
         ngx.say("cookie error")
         ngx.exit(200)
     end
 
-    local symbols_zero = {'○','□','♘','♢','▽','△','♖','✧','♔','♘','♕','♗','♙','♧'};
-    local symbols_one = {'●','■','♞','♦','▼','▲','♜','✦','♚','♞','♛','♝','♟','♣'};
-
-    
-    local img = gd.createFromJpeg("/tmp/background-" .. math.random(0,25) .. ".jpg")
- 
-    if img == nil then
-        img = gd.createTrueColor(150, 150)
-        local white = img:colorAllocate(255, 255, 255)
-        img:filledRectangle(0, 0, img_width, img_height, white)
-    end
-
-    img:setThickness(1)
-
-    -- if 0 each row will be horizontal
-    local draw_angle = 0
-
-    local current_row = 1
-    local capstring = ""
-    for i=1,9,1 do
-       local symbol_id = math.random(1,14)
-       local fillcolor = img:colorAllocate(math.random(5,255), math.random(5,255), math.random(5,255))
-       if capgrid[i] == 1 then
-           capstring = capstring .. symbols_one[symbol_id]
-       else
-           capstring = capstring .. symbols_zero[symbol_id]
-       end
-       capstring = capstring .. " "
-       if i % 3 == 0 then
-           if draw_angle == 1 then
-               angle = math.rad(math.random(0,10))
-           else
-               angle = 0
-           end
-           if current_row == 1 then
-               img:stringFT(fillcolor, "/etc/nginx/font.ttf", math.random(18,22), angle, math.random(10,50), math.random(30,60), capstring)
-           elseif current_row == 2 then
-               img:stringFT(fillcolor, "/etc/nginx/font.ttf", math.random(18,22), angle, math.random(10,50), math.random(60,90), capstring)
-           else
-               img:stringFT(fillcolor, "/etc/nginx/font.ttf", math.random(18,22), angle, math.random(10,50), math.random(100,130), capstring)
-           end
-       current_row = current_row + 1
-       capstring = ""
-       end
-    end
-    imgbase64 = base64_encode(img:pngStrEx(6))
-
 
 ngx.header.content_type = 'text/html';
-ngx.say("<html lang=en> \
+ngx.say("<!DOCTYPE html> \
+<html lang=en> \
 <head> \
 <title>DDOS Protection</title> \
 <meta charset=\"UTF-8\"> \
@@ -166,34 +186,95 @@ if caperror ~= nil
 then
 ngx.say("<p class=\"alert alert-danger text-center\"><strong>Error: </strong>" .. caperror .. "</p>")
 else
-ngx.say("<p>Due to on-going DDOS attacks against our servers, you must complete a captcha challenge to prove you are human.</p>")
+ngx.say("<p>Prove that you are human. Select the time shown on the clock image.</p>")
 end
-
 ngx.say("<form class=\"ddos_form\" method=\"post\"> \
 <div class=\"captchav2\" style=\"margin-bottom:15px;\"> \
-<div class=\"imgWrap\" style=\"border:1px solid #000;background-image:url(data:image/png;base64," .. imgbase64 .. "\"></div>")
-ngx.say("<div class=\"inputWrap\"> \
-<input type=\"checkbox\" name=\"cap\" value=\"1\"> \
-<input type=\"checkbox\" name=\"cap\" value=\"2\"> \
-<input type=\"checkbox\" name=\"cap\" value=\"3\"> \
-<input type=\"checkbox\" name=\"cap\" value=\"4\"> \
-<input type=\"checkbox\" name=\"cap\" value=\"5\"> \
-<input type=\"checkbox\" name=\"cap\" value=\"6\"> \
-<input type=\"checkbox\" name=\"cap\" value=\"7\"> \
-<input type=\"checkbox\" name=\"cap\" value=\"8\"> \
-<input type=\"checkbox\" name=\"cap\" value=\"9\">")
-ngx.say("<div class=\"c1\"></div> \
-<div class=\"c2\"></div> \
-<div class=\"c3\"></div> \
-<div class=\"c4\"></div> \
-<div class=\"c5\"></div> \
-<div class=\"c6\"></div> \
-<div class=\"c7\"></div> \
-<div class=\"c8\"></div> \
-<div class=\"c9\"></div>")
-ngx.say("</div> \
-</div> \
-<button type=\"submit\">Verify</button> \
+<div class=\"imgWrap\" style=\"border:2px solid #fff; max-width: 100%; border-radius: 50%; background-image:url(data:image/png;base64," .. imageb64 .. "\"></div>")
+ngx.say("</div>");
+ngx.say("<div style=\"margin-bottom: 15px;\">")
+ngx.say("<select class=\"center\" name=\"cap\" required>")
+for i = 0,11,1 do 
+  if i < 10 then si = "0" .. tostring(i) else si = i end
+  ngx.say("<option value=\"" .. si .. "\">" .. si .. "</option>\n")
+end
+ngx.say("</select> : ")
+ngx.say("<select name=\"cap\" required>")
+for i = 0,59,1 do 
+  if i < 10 then si = "0" .. tostring(i) else si = i end
+  ngx.say("<option value=\"" .. si .. "\">" .. si .. "</option>\n")
+end
+ngx.say("</select>")
+--ngx.say("<input type=\"text\" required  name=\"cap\" maxlength=\"2\" size=\"2\" placeholder=\"hh\"> : ")
+--ngx.say("<input type=\"text\" required  name=\"cap\" maxlength=\"2\" size=\"2\" placeholder=\"mm\">")
+ngx.say("</div>");
+ngx.say("<div class=\"expire\"> \
+	<div class=\"timer\"> \
+		<div class=\"time-part-wrapper\"> \
+			<div class=\"time-part seconds tens\"> \
+				<div class=\"digit-wrapper\"> \
+					<span class=\"digit\">0</span> \
+					<span class=\"digit\">5</span> \
+					<span class=\"digit\">4</span> \
+					<span class=\"digit\">3</span> \
+					<span class=\"digit\">2</span> \
+					<span class=\"digit\">1</span> \
+					<span class=\"digit\">0</span> \
+				</div> \
+			</div> \
+			<div class=\"time-part seconds ones\"> \
+				<div class=\"digit-wrapper\"> \
+					<span class=\"digit\">0</span> \
+					<span class=\"digit\">9</span> \
+					<span class=\"digit\">8</span> \
+					<span class=\"digit\">7</span> \
+					<span class=\"digit\">6</span> \
+					<span class=\"digit\">5</span> \
+					<span class=\"digit\">4</span> \
+					<span class=\"digit\">3</span> \
+					<span class=\"digit\">2</span> \
+					<span class=\"digit\">1</span> \
+					<span class=\"digit\">0</span> \
+				</div> \
+			</div> \
+		</div> \
+		<div class=\"time-part-wrapper\"> \
+			<div class=\"time-part hundredths tens\"> \
+				<div class=\"digit-wrapper\"> \
+					<span class=\"digit\">0</span> \
+					<span class=\"digit\">9</span> \
+					<span class=\"digit\">8</span> \
+					<span class=\"digit\">7</span> \
+					<span class=\"digit\">6</span> \
+					<span class=\"digit\">5</span> \
+					<span class=\"digit\">4</span> \
+					<span class=\"digit\">3</span> \
+					<span class=\"digit\">2</span> \
+					<span class=\"digit\">1</span> \
+					<span class=\"digit\">0</span> \
+				</div> \
+			</div> \
+			<div class=\"time-part hundredths ones\"> \
+				<div class=\"digit-wrapper\"> \
+					<span class=\"digit\">0</span> \
+					<span class=\"digit\">9</span> \
+					<span class=\"digit\">8</span> \
+					<span class=\"digit\">7</span> \
+					<span class=\"digit\">6</span> \
+					<span class=\"digit\">5</span> \
+					<span class=\"digit\">4</span> \
+					<span class=\"digit\">3</span> \
+					<span class=\"digit\">2</span> \
+					<span class=\"digit\">1</span> \
+					<span class=\"digit\">0</span> \
+				</div> \
+			</div> \
+		</div> \
+	</div> \
+</div>")
+
+ngx.say("<button class=\"before\" type=\"submit\">Verify</button> \
+<button class=\"expired\" type=\"submit\"> Refresh (expired)</button> \
 </form> \
 </div> \
 </div> \

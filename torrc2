@@ -1,0 +1,7 @@
+#User debian-tor
+DataDirectory  /etc/tor/2/
+
+RunAsDaemon 1
+SocksPort 9060
+ControlPort unix:/etc/tor/c2 WorldWritable RelaxDirModeCheck
+CookieAuthentication 1

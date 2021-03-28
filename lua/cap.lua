@@ -1,12 +1,13 @@
 -- encryption key and salt must be shared across fronts. salt must be 8 chars
 local key = "encryption_key"
-local salt = "salt1234"
+local salt = "1saltkey"
 -- for how long the captcha is valid. 120 sec is for testing, 3600 1 hour should be production.
 local session_timeout = 3600
 
 aes = require "resty.aes"
 str = require "resty.string"
 cook = require "resty.cookie"
+random = require "resty.random"
 
 aes_128_cbc_sha512x1 = aes:new(key, salt, aes.cipher(128,"cbc"), aes.hash.sha512, 1)
 
@@ -88,72 +89,109 @@ if ngx.var.request_method == "POST" and ngx.var.http_referer == nil then
     ngx.exit(444)
 end
 
+-- check if cookie is blacklisted by rate limiter. if it is show the client a message and exit. can get creative with this.
+local field, err = cookie:get("dcap")
+local blocked_cookies = ngx.shared.blocked_cookies
+local bct, btcflags = blocked_cookies:get(field)
+if bct then
+    ngx.header.content_type = 'text/plain'
+    ngx.say("403 DDOS fliter killed your path. (You probably sent too many requests at once). Not calling you a bot, bot, but grab a new identity and try again.")
+    ngx.flush()
+    ngx.exit(200)  
+end
+
 -- check cookie support similar to testcookie
 if ngx.var.request_method == "GET" then
-    local args = ngx.req.get_uri_args()
-    if args['tca'] == "1" then
-        local field, err = cookie:get("dcap")
-        if err or not field then
-            ngx.exit(403)   
-        end
--- if cookie cannot be decrypted most likely it has been messed with
-        local cookdata = aes_128_cbc_sha512x1:decrypt(fromhex(field))
-        if not cookdata then
-            ngx.header.content_type = 'text/plain'
-            ngx.say("403 DDOS fliter killed your path. (You probably sent too many requests at once). Not calling you a bot, bot, but grab a new identity and try again.")
-            ngx.flush()
-            ngx.exit(200)  
-        end      
-        cooktest = split(cookdata, "|")[1]
-        if cooktest ~= "cap_not_solved" and cooktest ~= "captcha_solved" then
-            ngx.exit(403)
-        end
-    end
-
--- try to set cookie. max-age is irrelevant as it can be faked and check is done against cookie content anyway. should be set to a large value otherwise it will annoy users
     local field, err = cookie:get("dcap")
     if err then
-        local tstamp = ngx.now()
-        local plaintext = "cap_not_solved|" .. tstamp .. "|1"
+        --local tstamp = ngx.now() + slidingscalefunction 
+        local tstamp = ngx.now() + 10
+        local plaintext = "queue|" .. tstamp .. "|1|" .. random.token(random.number(10,20))
         local ciphertext = tohex(aes_128_cbc_sha512x1:encrypt(plaintext))
         local ok, err = cookie:set({
             key = "dcap", value = ciphertext, path = "/",
             domain = ngx.var.host, httponly = true,
-            max_age = 21600,
-            samesite = "Strict"
+            max_age = session_timeout,
+            samesite = "Lax"
             })
         if not ok then
             ngx.log(ngx.ERR, err)
             return
         end
-	ngx.header.content_type = 'text/html'
-        ngx.say("<head> \
-  		<meta http-equiv=\"refresh\" content=\"1\"> \
-		</head><a href=\"/\">One moment...</p>")
+        ngx.header.content_type = 'text/html'
+        local file = io.open("/etc/nginx/queue.html")
+        local queue, err = file:read("*a")
+        file:close()
+        ngx.say(queue)
         ngx.flush()
         ngx.exit(200)
+    else
+        plaintext = aes_128_cbc_sha512x1:decrypt(fromhex(field))
+        if not plaintext then
+            ngx.header.content_type = 'text/plain'
+            ngx.say("403 DDOS fliter killed your path. (You probably sent too many requests at once). Not calling you a bot, bot, but grab a new identity and try again.")
+            ngx.flush()
+            ngx.exit(200)
+        end
+        cookdata = split(plaintext,"|")
+        local expired = nil
+        if (cookdata[1] == "queue") then
+            --if (tonumber(cookdata[2])) > ngx.now() or (tonumber(cookdata[2])) > tonumber(cookdata[2]) + slidingscalefunction then
+            if (tonumber(cookdata[2])) > ngx.now() or (tonumber(cookdata[2])) > ngx.now() + 40 then
+                if pa ~= "no_proxy" then
+                    local ok, err = ngx.timer.at(0, kill_circuit, ngx.var.remote_addr, ngx.var.proxy_protocol_addr)
+                    if not ok then
+                        ngx.log(ngx.ERR, "failed to create timer: ", err)
+                        return
+                    end
+                end
+                local blocked_cookies = ngx.shared.blocked_cookies
+                blocked_cookies:set(field, 1, 3600)
+                ngx.exit(444)
+            end
+
+            require "caphtml_d"
+
+            local expired = nil
+
+            displaycap(session_timeout)
+            ngx.flush()
+            ngx.exit(200)
+
+        elseif (cookdata[1] == "cap_not_solved") then
+            if (tonumber(cookdata[2]) + 60) > ngx.now() then
+                if pa ~= "no_proxy" then
+                    local ok, err = ngx.timer.at(0, kill_circuit, ngx.var.remote_addr, ngx.var.proxy_protocol_addr)
+                    if not ok then
+                        ngx.log(ngx.ERR, "failed to create timer: ", err)
+                        return
+                    end
+                end
+                ngx.header.content_type = 'text/html'
+                ngx.say("<h1>THINK OF WHAT YOU HAVE DONE!</h1>")
+                ngx.say("<p>That captcha was generated just for you. And look at what you did. Ignoring the captcha... not even giving an incorrect answer to his meaningless existence. You couldn't even give him false hope. Shame on you.</p>")
+                ngx.say("<p>Don't immedately refresh for a new captcha! Try and fail. You must now wait about a minute for a new captcha to load.</p>")
+                ngx.flush()
+                ngx.exit(200)
+            end
+
+            -- captcha generator functions
+            require "caphtml_d"
+
+            local expired = nil
+
+            if (tonumber(cookdata[2]) + session_timeout) < ngx.now() then
+                 expired = true
+                 caperror = "Session expired"
+            end
+
+            if cookdata[1] ~= "captcha_solved" or expired then
+                displaycap(session_timeout)
+                ngx.flush()
+                ngx.exit(200)
+             end
+        end
     end
-end
-
--- captcha generator functions
-require "caphtml_d"
-
-local field, err = cookie:get("dcap")
-if not field or field == nil then
-    displaycap()
-    ngx.flush()
-    ngx.exit(200)
-end
-
--- check if cookie is blacklisted by rate limiter. if it is show the client a message and exit. can get creative with this.
-local blocked_cookies = ngx.shared.blocked_cookies
-local bct, btcflags = blocked_cookies:get(field)
-if bct then
-    ngx.log(ngx.ERR, "Cookie " .. field .. " blacklisted.")
-    ngx.header.content_type = 'text/plain'
-    ngx.say("403 DDOS fliter killed your path. (You probably sent too many requests at once). Not calling you a bot, bot, but grab a new identity and try again.")
-    ngx.flush()
-    ngx.exit(200)  
 end
 
 if ngx.var.request_method == "POST" then
@@ -172,24 +210,28 @@ if ngx.var.request_method == "POST" then
         end
         cookdata = split(plaintext,"|")
         local expired = nil
-        if (tonumber(cookdata[2]) + session_timeout) < ngx.now() then
-            expired = true
-            caperror = "Session expired"
-            displaycap()
-            ngx.flush()
-            ngx.exit(200)
-         end
-	 if cookdata[1] == "captcha_solved" and not expired then
+        if (cookdata[1] == "cap_not_solved") then
+            if (tonumber(cookdata[2]) + session_timeout) < ngx.now() then
+                expired = true
+                require "caphtml_d"
+                caperror = "Session expired"
+                displaycap(session_timeout)
+                ngx.flush()
+                ngx.exit(200)
+            end
+         elseif (cookdata[1] == "captcha_solved") then
             return
          end
     end
+
+    require "caphtml_d"
 
 -- resty has a library for parsing POST data but it's not really needed
     ngx.req.read_body()
     local dataraw = ngx.req.get_body_data()
     if dataraw == nil then
         caperror = "You didn't submit anything. Try again."
-        displaycap()
+        displaycap(session_timeout)
         ngx.flush()
         ngx.exit(200)
     end
@@ -213,24 +255,25 @@ if ngx.var.request_method == "POST" then
 
         if (tonumber(cookdata[2]) + 60) < ngx.now() then
             caperror = "Captcha expired"
-            displaycap()
+            displaycap(session_timeout)
             ngx.flush()
             ngx.exit(200)
         end
 
-        if sentcap == cookdata[3] then
+        if string.lower(sentcap) == string.lower(cookdata[3]) then
             local newcookdata = ""
             cookdata[1] = "captcha_solved"
             for k,v in pairs(cookdata) do
                 newcookdata = newcookdata .. "|" .. v
             end
+            newcookdata = newcookdata .. "|" .. random.token(random.number(10,20))
             local tstamp = ngx.now()
             local ciphertext = tohex(aes_128_cbc_sha512x1:encrypt(newcookdata))
             local ok, err = cookie:set({
                 key = "dcap", value = ciphertext, path = "/",
                 domain = ngx.var.host, httponly = true,
-                max_age = 21600,
-                samesite = "Strict"
+                max_age = session_timeout,
+                samesite = "Lax"
                 })
             if not ok then
                 ngx.say("cookie error")
@@ -244,39 +287,8 @@ if ngx.var.request_method == "POST" then
         else
             caperror = "You Got That Wrong. Try again"
         end
-        
-    else
-        caperror = "Session invalid or expired"
-        displaycap()
+        displaycap(session_timeout)
         ngx.flush()
         ngx.exit(200)        
     end
 end
-
-plaintext = aes_128_cbc_sha512x1:decrypt(fromhex(field))
-if not plaintext then
-    ngx.header.content_type = 'text/plain'
-    ngx.say("403 DDOS fliter killed your path. (You probably sent too many requests at once). Not calling you a bot, bot, but grab a new identity and try again.")
-    ngx.flush()
-    ngx.exit(200)
-end
-cookdata = split(plaintext,"|")
-
-if not cookdata then
-    displaycap()
-    ngx.flush()
-    ngx.exit(200)
-end
-
-local expired = nil
-if (tonumber(cookdata[2]) + session_timeout) < ngx.now() then
-   expired = true
-   caperror = "Session expired"
-end
-
-if cookdata[1] ~= "captcha_solved" or expired then
-    displaycap()
-    ngx.flush()
-    ngx.exit(200)
-end
-
