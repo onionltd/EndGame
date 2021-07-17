@@ -82,7 +82,7 @@ The main configuration can be found at the top of the `setup.sh` file. It custom
 There are options. Such as:
 * MASTERONION - Your V3 Master OnionBalance Address **WITHOUT http://** (example: dreadytofatroptsdj6io7l3xptbet6onoyno2yv7jicoxknyazubrad.onion)
 * TORAUTHPASSWORD - Password which is used for your Tor Control Port Authentication with NGINX. Alphanumeric without spaces (example: passwordIcanremembertyping)
-* KEY - Alphanumeric Key for the shared front session key. Random between 64-128 would do fine. (example: isthis64charactorsalreadyicantbelieveitwowsocoolwaitnotyetohdarn)
+* KEY - Alphanumeric Key for the shared front session key. Random alphanumberic 64 or 128 would do fine. (example: isthis64charactorsalreadyicantbelieveitwowsocoolwaitnotyetohdarn)
 * SALT - 8 character salt used with the key. 8 random alphanumeric characters (example: saltsalt)
 * SESSION_LENGTH - In seconds the amount of time until cookie timeout. Set it high as you can. (example: 3600 [aka 1 hour])
 * HEXCOLOR - HEX color put into the css file to be not purple but your main site's color. Any CSS hex will work. (example: #9b59b6)

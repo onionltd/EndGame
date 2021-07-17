@@ -17,7 +17,8 @@ SESSION_LENGTH=3600
 
 #CSS Branding
 
-HEXCOLOR="#9b59b6"
+HEXCOLOR="9b59b6"
+HEXCOLORDARK="6d3d82"
 SITENAME="dread"
 
 #There is more branding you need to do in the resty/caphtml_d.lua file near the end.
@@ -32,7 +33,7 @@ NC='\033[0m' # No Color
 printf "\r\nProvided by your lovely ${BLUE}/u/Paris${NC} from dread. \r\n"
 printf "with help from ${BLUE}/u/mr_white${NC} from whitehousemarket.\n"
 echo "For the full effects of the DDOS prevention you will need to make sure to setup v3 onionbalance."
-echo "Onionbalance v3 does have distinct descriptors in a forked version. Read the README.MD in the onionbalance folder for more information. "
+echo "Onionbalance v3 does have distinct descriptors in a forked version. Read the README.MD in the onionbalance folder for more information."
 
 if [ ${#MASTERONION} -lt 62 ]; then
  echo "MASTEWRONION doesn't have the correct length. The url needs to include the .onion at the end." 
@@ -101,6 +102,11 @@ sed -i $string cap_d.css
 
 string="s/HEXCOLOR/"
 string+="$HEXCOLOR"
+string+="/g"
+sed -i $string queue.html
+
+string="s/HEXCOLORDARK/"
+string+="$HEXCOLORDARK"
 string+="/g"
 sed -i $string queue.html
 

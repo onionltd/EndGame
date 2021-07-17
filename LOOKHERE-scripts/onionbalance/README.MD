@@ -19,6 +19,14 @@ Save the params.py file and go back to the main onionbalance directory. Run
 
 python3 setup.py install
 
-and then you can setup the configuration
+and then you can setup the configuration with your front's URLs. 
 
-**When setting up your onionbalance configuration limit the amount of fronts to 18! Setting it higher you can get descriptor or introduction issues which will cause your onion's descriptor to not be correctly pushed.**
+To run onionbalance cd into the onionbalance directory and run:
+
+nohup onionbalance -v info -c config/config.yaml &
+
+This will start onionbalance detacted from the terminal and then put it in the background. Afterwards you can run 
+
+tail -f nohup.out
+
+and see the status of it. You want to see distinct descriptors being pushed.
