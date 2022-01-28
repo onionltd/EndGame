@@ -29,6 +29,6 @@ cd onionbalance
 python3 setup.py install
 
 clear
-onionbalance-config --hs-version v3 -n 3
+onionbalance-config --hs-version v3 -n 1
 
 echo "Setup Done.You need to do configuration"
